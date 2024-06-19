@@ -21,3 +21,7 @@ FetchContent_Declare(
   GIT_REPOSITORY https://git.astron.nl/RD/recruit/ccglib
   GIT_TAG temp-medical)
 FetchContent_MakeAvailable(ccglib)
+
+add_executable(${PROJECT_NAME} src/main.cpp)
+target_link_libraries(${PROJECT_NAME} ccglib cudawrappers::cu
+                      cudawrappers::nvrtc)
