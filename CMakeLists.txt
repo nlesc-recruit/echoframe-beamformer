@@ -6,6 +6,9 @@ project(
   VERSION 0.1
   LANGUAGES CXX CUDA)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_BUILD_TYPE Release)
+
 find_package(CUDAToolkit REQUIRED)
 find_package(OpenMP REQUIRED)
 
@@ -23,9 +26,13 @@ FetchContent_Declare(
   GIT_TAG temp-medical)
 FetchContent_MakeAvailable(ccglib)
 
-# add_executable(${PROJECT_NAME}-unified src/main_with_unified.cpp)
-add_executable(${PROJECT_NAME}-pinned src/main.cu)
-# target_link_libraries(${PROJECT_NAME}-unified ccglib cudawrappers::cu
-# cudawrappers::nvrtc OpenMP::OpenMP_CXX)
-target_link_libraries(${PROJECT_NAME}-pinned ccglib cudawrappers::cu
+add_executable(${PROJECT_NAME} src/main_standalone.cu)
+target_link_libraries(${PROJECT_NAME} ccglib cudawrappers::cu
                       cudawrappers::nvrtc OpenMP::OpenMP_CXX)
+
+add_library(tcbf SHARED src/tcbf.cu)
+target_include_directories(tcbf PUBLIC include/)
+target_link_libraries(tcbf ccglib cudawrappers::cu cudawrappers::nvrtc)
+
+add_executable(tcbf_test src/main.cu)
+target_link_libraries(tcbf_test tcbf)
