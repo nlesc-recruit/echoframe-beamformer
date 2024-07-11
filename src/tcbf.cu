@@ -10,10 +10,9 @@ Beamformer::Beamformer(const size_t pixels, const size_t frames,
     : pixels_(pixels), frames_(frames), samples_(samples), device_(device),
       stream_(stream) {
   // array sizes, factor 2 is for complex axis
-  bytesAPacked_ =
-      2 * pixels_ * samples_ * sizeof(unsigned int) / kPackingFactor;
+  bytesAPacked_ = 2 * pixels_ * samples_ / CHAR_BIT;
   bytesRF_ = 2 * frames_ * samples_;
-  bytesRFPacked_ = 2 * bytesRF_ * sizeof(unsigned int) / kPackingFactor;
+  bytesRFPacked_ = bytesRF_ / CHAR_BIT;
   bytesBF_ = 2 * pixels_ * frames_ * sizeof(int);
   // allocate device memory
   d_A = std::make_unique<cu::DeviceMemory>(bytesAPacked_);
@@ -22,11 +21,11 @@ Beamformer::Beamformer(const size_t pixels, const size_t frames,
   d_RF_transposed = std::make_unique<cu::DeviceMemory>(bytesRFPacked_);
   d_BF = std::make_unique<cu::DeviceMemory>(bytesBF_);
   // create objects to run kernels
-  pack_rf_ = std::make_unique<ccglib::packing::Packing>(frames_ * samples_,
+  pack_rf_ = std::make_unique<ccglib::packing::Packing>(2 * frames_ * samples_,
                                                         device_, stream_);
   transpose_rf_ = std::make_unique<ccglib::transpose::Transpose>(
-      kBatchSize, frames_, samples_ / kPackingFactor, kGEMMTileSize.y,
-      kGEMMTileSize.z, kBitsPerSample, device, stream);
+      kBatchSize, frames_, samples_, kGEMMTileSize.y, kGEMMTileSize.z,
+      kBitsPerSample, device_, stream_);
   gemm_ = std::make_unique<ccglib::mma::GEMM>(
       kBatchSize, pixels_, frames_, samples_, kBitsPerSample, device_, stream_,
       kGEMMPrecision, kGEMMVariant);
@@ -54,6 +53,9 @@ void Beamformer::read_RF(cu::HostMemory &RF, const std::string path,
   }
   // read row-by-row to handle padding
   for (size_t frame = 0; frame < frames_data; frame++) {
+    in.read(static_cast<char *>(RF) + frame * samples_, samples_data);
+  }
+  for (size_t frame = frames_; frame < frames_ + frames_data; frame++) {
     in.read(static_cast<char *>(RF) + frame * samples_, samples_data);
   }
 }

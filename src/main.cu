@@ -8,6 +8,21 @@ inline size_t align(size_t a, size_t b) {
   return b * ccglib::helper::ceildiv(a, b);
 }
 
+template <typename T>
+void read_file(const std::string path, char *data, const size_t M,
+               const size_t N, const size_t M_padded, const size_t N_padded) {
+  std::ifstream in(path, std::ios::binary | std::ios::in);
+  if (!in) {
+    throw std::runtime_error("Failed to open input file: " + path);
+  }
+
+  for (size_t m = 0; m < M; m++) {
+    const size_t byte_offset = m * N_padded * sizeof(T);
+
+    in.read(data + byte_offset, N * sizeof(T));
+  }
+}
+
 int main() {
   cu::init();
   cu::Device device(0);
@@ -35,6 +50,7 @@ int main() {
       RF,
       "/var/scratch/oostrum/cube_data/gemm/sign_demo/RF_full_524288_8041.bin",
       frames_data, samples_data);
+
   beamformer.process(RF, BF);
 
   std::ofstream out("/var/scratch/oostrum/cube_data/gemm/sign_demo/BF.bin",
