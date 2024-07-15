@@ -22,7 +22,7 @@ FetchContent_MakeAvailable(cudawrappers)
 FetchContent_Declare(
   ccglib
   GIT_REPOSITORY https://git.astron.nl/RD/recruit/ccglib
-  GIT_TAG temp-medical)
+  GIT_TAG main)
 FetchContent_MakeAvailable(ccglib)
 
 add_library(tcbf SHARED src/tcbf.cu)

@@ -28,7 +28,7 @@ Beamformer::Beamformer(const size_t pixels, const size_t frames,
       kBitsPerSample, device_, stream_);
   gemm_ = std::make_unique<ccglib::mma::GEMM>(
       kBatchSize, pixels_, frames_, samples_, kBitsPerSample, device_, stream_,
-      kGEMMPrecision, kGEMMVariant);
+      kGEMMPrecision, kGEMMVariant, ccglib::mma::col_major);
 }
 
 void Beamformer::read_A_matrix(const std::string path) {
