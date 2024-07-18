@@ -17,6 +17,7 @@ public:
   //                              const );
   void read_A_matrix(const std::string path);
   void read_RF(cu::HostMemory &RF, const std::string path);
+  void write_BF(cu::HostMemory &BF, const std::string path);
   void process(cu::HostMemory &RF, cu::HostMemory &BF);
 
 private:

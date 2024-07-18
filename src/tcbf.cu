@@ -77,6 +77,15 @@ void Beamformer::read_RF(cu::HostMemory &RF, const std::string path) {
   in.read(static_cast<char *>(RF), COMPLEX * frames_ * samples_);
 }
 
+void Beamformer::write_BF(cu::HostMemory &BF, const std::string path) {
+  std::ofstream out(path, std::ios::binary | std::ios::out);
+  if (!out) {
+    throw std::runtime_error("Failed to open output file: " + path);
+  }
+  out.write(static_cast<char *>(BF),
+            COMPLEX * frames_ * pixels_ * sizeof(unsigned));
+}
+
 void Beamformer::RF_to_device(cu::HostMemory &RF) {
   // transfer in chunks to handle padding
   // RF shape is complex * frames(padded) * samples(padded)

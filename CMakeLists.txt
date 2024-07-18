@@ -14,6 +14,12 @@ find_package(CUDAToolkit REQUIRED)
 include(FetchContent)
 
 FetchContent_Declare(
+  cxxopts
+  GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
+  GIT_TAG v3.2.0)
+FetchContent_MakeAvailable(cxxopts)
+
+FetchContent_Declare(
   cudawrappers
   GIT_REPOSITORY https://github.com/nlesc-recruit/cudawrappers.git
   GIT_TAG main)
@@ -30,4 +36,4 @@ target_include_directories(tcbf PUBLIC include/)
 target_link_libraries(tcbf ccglib cudawrappers::cu cudawrappers::nvrtc)
 
 add_executable(${PROJECT_NAME} src/main.cu)
-target_link_libraries(${PROJECT_NAME} tcbf)
+target_link_libraries(${PROJECT_NAME} cxxopts tcbf)
