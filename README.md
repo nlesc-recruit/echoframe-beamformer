@@ -3,10 +3,12 @@
 ## Requirements
 
 | Software | Minimum version |
+| -------- | --------------- |
 | CUDA | 10.0|
 | CMake | 3.20 |
 
 | Hardware | Type |
+| -------- | ---- |
 | GPU | Ampere-generation NVIDIA GPU or later |
 
 ## Installation
