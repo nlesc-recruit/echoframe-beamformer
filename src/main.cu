@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iostream>
 
-#include "tcbf.h"
+#include <tcbf.h>
 
 cxxopts::Options create_commandline_parser(const char *argv[]) {
   cxxopts::Options options(argv[0], "Echoframe standalone beamformer");
