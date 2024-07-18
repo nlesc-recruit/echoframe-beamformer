@@ -32,6 +32,16 @@ cxxopts::ParseResult parse_commandline(int argc, const char *argv[]) {
       exit(EXIT_SUCCESS);
     }
 
+    std::vector<std::string> required_options{"a_matrix", "rf",     "bf",
+                                              "pixels",   "frames", "samples"};
+    for (auto &opt : required_options) {
+      if (!result.count(opt)) {
+        std::cerr << "Required argument missing: " << opt << std::endl;
+        std::cerr << "Run " << argv[0] << " -h for help" << std::endl;
+        exit(EXIT_FAILURE);
+      }
+    }
+
     return result;
   } catch (const cxxopts::exceptions::exception &err) {
     std::cerr << "Error parsing commandline: " << err.what() << std::endl;
