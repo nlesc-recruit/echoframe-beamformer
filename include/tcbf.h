@@ -16,14 +16,13 @@ public:
   // std::string output_path, const size_t pixels, const size_t samples,
   //                              const );
   void read_A_matrix(const std::string path);
-  void read_RF(cu::HostMemory &RF, const std::string path,
-               const size_t frames_data, const size_t samples_data);
+  void read_RF(cu::HostMemory &RF, const std::string path);
   void process(cu::HostMemory &RF, cu::HostMemory &BF);
 
-  size_t bytesRF_;
-  size_t bytesBF_;
-
 private:
+  void RF_to_device(cu::HostMemory &RF);
+  void BF_to_host(cu::HostMemory &BF);
+
   static const size_t kBitsPerSample{1};
   static const size_t kBatchSize{1};
   static const ccglib::mma::Precision kGEMMPrecision{ccglib::mma::int1};
@@ -43,8 +42,14 @@ private:
   std::unique_ptr<ccglib::mma::GEMM> gemm_;
 
   size_t pixels_;
+  size_t pixels_padded_;
   size_t frames_;
+  size_t frames_padded_;
   size_t samples_;
+  size_t samples_padded_;
+
+  size_t bytesRF_;
+  size_t bytesBF_;
   size_t bytesAPacked_;
   size_t bytesRFPacked_;
 

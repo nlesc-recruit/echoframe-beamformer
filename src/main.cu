@@ -1,27 +1,7 @@
 #include <fstream>
 #include <iostream>
 
-#include <ccglib/helper.h>
-#include <tcbf.h>
-
-inline size_t align(size_t a, size_t b) {
-  return b * ccglib::helper::ceildiv(a, b);
-}
-
-template <typename T>
-void read_file(const std::string path, char *data, const size_t M,
-               const size_t N, const size_t M_padded, const size_t N_padded) {
-  std::ifstream in(path, std::ios::binary | std::ios::in);
-  if (!in) {
-    throw std::runtime_error("Failed to open input file: " + path);
-  }
-
-  for (size_t m = 0; m < M; m++) {
-    const size_t byte_offset = m * N_padded * sizeof(T);
-
-    in.read(data + byte_offset, N * sizeof(T));
-  }
-}
+#include "tcbf.h"
 
 int main() {
   cu::init();
@@ -29,27 +9,19 @@ int main() {
   cu::Context context(CU_CTX_BLOCKING_SYNC, device);
   cu::Stream stream;
 
-  const size_t pixels_data = 38880;
-  const size_t frames_data = 8041;
-  const size_t samples_data = 524288;
-
-  dim3 tile_sizes =
-      ccglib::mma::GEMM::GetDimensions(ccglib::mma::int1, ccglib::mma::opt);
-
-  const size_t pixels = align(pixels_data, tile_sizes.x);
-  const size_t frames = align(frames_data, tile_sizes.y);
-  const size_t samples = align(samples_data, tile_sizes.z);
+  const size_t pixels = 38880;
+  const size_t frames = 8041;
+  const size_t samples = 524288;
 
   tcbf::Beamformer beamformer(pixels, frames, samples, device, stream);
-  cu::HostMemory RF(beamformer.bytesRF_);
-  cu::HostMemory BF(beamformer.bytesBF_);
+  cu::HostMemory RF(2 * frames * samples);
+  cu::HostMemory BF(2 * pixels * frames * sizeof(unsigned));
 
   beamformer.read_A_matrix("/var/scratch/oostrum/cube_data/gemm/sign_demo/"
                            "A_packed_transposed_conjugated_64_256.bin");
   beamformer.read_RF(
       RF,
-      "/var/scratch/oostrum/cube_data/gemm/sign_demo/RF_full_524288_8041.bin",
-      frames_data, samples_data);
+      "/var/scratch/oostrum/cube_data/gemm/sign_demo/RF_full_524288_8041.bin");
 
   beamformer.process(RF, BF);
 
