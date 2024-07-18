@@ -13,7 +13,7 @@
 
 | Hardware | Type |
 | -------- | ---- |
-| GPU | Ampere-generation NVIDIA GPU or later |
+| GPU | NVIDIA GPU with 1-bit tensor cores (Turing-generation or later)|
 
 ## Installation
 This project uses CMake. To build the library:
