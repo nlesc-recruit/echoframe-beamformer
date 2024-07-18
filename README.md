@@ -1,10 +1,14 @@
+[![github url](https://img.shields.io/badge/github-url-000.svg?logo=github&labelColor=gray&color=blue)](https://github.com/nlesc-recruit/echoframe-beamformer)
+[![github license badge](https://img.shields.io/github/license/nlesc-recruit/echoframe-beamformer)](https://github.com/nlesc-recruit/echoframe-beamformer)
+[![CI status](https://github.com/nlesc-recruit/echoframe-beamformer/actions/workflows/build.yml/badge.svg)](https://github.com/nlesc-recruit/echoframe-beamformer/actions/workflows/build.yml)
+
 # Echoframe tensor core beamformer
 
 ## Requirements
 
 | Software | Minimum version |
 | -------- | --------------- |
-| CUDA | 10.0|
+| CUDA | 11.0|
 | CMake | 3.20 |
 
 | Hardware | Type |
