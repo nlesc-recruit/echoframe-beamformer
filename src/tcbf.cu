@@ -47,7 +47,7 @@ Beamformer::Beamformer(const size_t pixels, const size_t frames,
   d_BF = std::make_unique<cu::DeviceMemory>(bytesBF_);
   // create objects to run kernels
   pack_rf_ = std::make_unique<ccglib::packing::Packing>(
-      2 * frames_padded_ * samples_padded_, device_, stream_);
+      COMPLEX * frames_padded_ * samples_padded_, device_, stream_);
   transpose_rf_ = std::make_unique<ccglib::transpose::Transpose>(
       kBatchSize, frames_padded_, samples_padded_, kGEMMTileSize.y,
       kGEMMTileSize.z, kBitsPerSample, device_, stream_);
