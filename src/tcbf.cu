@@ -78,18 +78,16 @@ void Beamformer::write_BF(cu::HostMemory &BF, const std::string path) {
 
 void Beamformer::RF_to_device(cu::HostMemory &RF) {
   // transfer in chunks to handle padding
-  // RF shape is complex * frames(padded) * samples(padded)
-  for (size_t c = 0; c < COMPLEX; c++) {
-    for (size_t f = 0; f < frames_; f++) {
-      // get objects pointing to start of chunk to transfer
-      const size_t d_offset =
-          c * frames_padded_ * samples_padded_ + f * samples_padded_;
-      const size_t offset = c * frames_ * samples_ + f * samples_;
-      const size_t bytes_to_transfer = samples_;
-      cu::DeviceMemory d_RF_chunk(*d_RF, d_offset, bytes_to_transfer);
-      stream_.memcpyHtoDAsync(d_RF_chunk, static_cast<char *>(RF) + offset,
-                              bytes_to_transfer);
-    }
+  // RF shape is frames(padded) * samples(padded) * complex
+  for (size_t f = 0; f < frames_; f++) {
+    // get objects pointing to start of chunk to transfer
+    // factors of 2 are for complex
+    const size_t d_offset = f * samples_padded_ * 2;
+    const size_t offset = f * samples_ * 2;
+    const size_t bytes_to_transfer = samples_ * 2;
+    cu::DeviceMemory d_RF_chunk(*d_RF, d_offset, bytes_to_transfer);
+    stream_.memcpyHtoDAsync(d_RF_chunk, static_cast<char *>(RF) + offset,
+                            bytes_to_transfer);
   }
 }
 
@@ -116,7 +114,8 @@ void Beamformer::process(cu::HostMemory &RF, cu::HostMemory &BF) {
   // transfer RF to GPU
   RF_to_device(RF);
   // pack bits
-  pack_rf_->Run(*d_RF, *d_RF_packed, ccglib::packing::pack);
+  pack_rf_->Run(*d_RF, *d_RF_packed, ccglib::packing::pack,
+                ccglib::packing::complex_last);
   // transpose to format required by GEMM
   transpose_rf_->Run(*d_RF_packed, *d_RF_transposed);
   // do GEMM

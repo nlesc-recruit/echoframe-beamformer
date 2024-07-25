@@ -28,7 +28,7 @@ FetchContent_MakeAvailable(cudawrappers)
 FetchContent_Declare(
   ccglib
   GIT_REPOSITORY https://git.astron.nl/RD/recruit/ccglib
-  GIT_TAG main)
+  GIT_TAG packing_complex_last) # temporary to support complex-last data
 FetchContent_MakeAvailable(ccglib)
 
 add_library(tcbf SHARED src/tcbf.cu)
