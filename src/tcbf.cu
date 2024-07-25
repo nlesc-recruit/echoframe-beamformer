@@ -12,16 +12,6 @@ static inline size_t align(size_t a, size_t b) {
   return b * ccglib::helper::ceildiv(a, b);
 }
 
-static inline cu::DeviceMemory
-get_offset_device_memory(cu::DeviceMemory &d_mem, const size_t byte_offset,
-                         const size_t bytes) {
-  return cu::DeviceMemory(
-      reinterpret_cast<CUdeviceptr>(
-          reinterpret_cast<char *>(static_cast<CUdeviceptr>(d_mem)) +
-          byte_offset),
-      bytes);
-}
-
 namespace tcbf {
 Beamformer::Beamformer(const size_t pixels, const size_t frames,
                        const size_t samples, cu::Device &device,
@@ -96,8 +86,7 @@ void Beamformer::RF_to_device(cu::HostMemory &RF) {
           c * frames_padded_ * samples_padded_ + f * samples_padded_;
       const size_t offset = c * frames_ * samples_ + f * samples_;
       const size_t bytes_to_transfer = samples_;
-      cu::DeviceMemory d_RF_chunk =
-          get_offset_device_memory(*d_RF, d_offset, bytes_to_transfer);
+      cu::DeviceMemory d_RF_chunk(*d_RF, d_offset, bytes_to_transfer);
       stream_.memcpyHtoDAsync(d_RF_chunk, static_cast<char *>(RF) + offset,
                               bytes_to_transfer);
     }
@@ -116,8 +105,7 @@ void Beamformer::BF_to_host(cu::HostMemory &BF) {
       const size_t offset =
           (c * frames_ * pixels_ + f * pixels_) * sizeof(unsigned);
       const size_t bytes_to_transfer = pixels_ * sizeof(unsigned);
-      cu::DeviceMemory d_BF_chunk =
-          get_offset_device_memory(*d_BF, d_offset, bytes_to_transfer);
+      cu::DeviceMemory d_BF_chunk(*d_BF, d_offset, bytes_to_transfer);
       stream_.memcpyDtoHAsync(static_cast<char *>(BF) + offset, d_BF_chunk,
                               bytes_to_transfer);
     }
