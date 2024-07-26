@@ -106,9 +106,8 @@ int main(int argc, const char *argv[]) {
   // get available GPU memory (after allocating other device memory)
   // use at most 80% of available memory
   size_t bytes_per_chunk = .8 * context.getFreeMemory();
-  // round to multiple of a kilobyte such that
-  // a large multiple of unsigned ints (4 bytes) is processed
-  // packing kernel uses 256 threads per block: one block is on KB
+  // packing kernel uses at most 1024 threads per block (and should be a power of 2), each thread processes one byte
+  // round to multiple of a kilobyte such that it correspond to a whole number of blocks
   bytes_per_chunk = 1024 * (bytes_per_chunk / 1024);
   if (bytes_per_chunk > bytes_a_matrix) {
     bytes_per_chunk = bytes_a_matrix;
