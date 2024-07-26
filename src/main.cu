@@ -1,22 +1,18 @@
+#include <tcbf.h>
+
 #include <cxxopts.hpp>
 #include <fstream>
 #include <iostream>
 
-#include <tcbf.h>
-
 cxxopts::Options create_commandline_parser(const char *argv[]) {
   cxxopts::Options options(argv[0], "Echoframe standalone beamformer");
 
-  options.add_options()("a_matrix", "Full path to input prepared A matrix",
-                        cxxopts::value<std::string>())(
-      "rf", "Full path to input RF", cxxopts::value<std::string>())(
-      "bf", "Full path to output BF", cxxopts::value<std::string>())(
-      "pixels", "Number of pixels", cxxopts::value<size_t>())(
-      "frames", "Number of frames", cxxopts::value<size_t>())(
+  options.add_options()("a_matrix", "Full path to input prepared A matrix", cxxopts::value<std::string>())(
+      "rf", "Full path to input RF", cxxopts::value<std::string>())("bf", "Full path to output BF",
+                                                                    cxxopts::value<std::string>())(
+      "pixels", "Number of pixels", cxxopts::value<size_t>())("frames", "Number of frames", cxxopts::value<size_t>())(
       "samples", "Number of samples", cxxopts::value<size_t>())(
-      "device", "GPU device ID",
-      cxxopts::value<unsigned>()->default_value(std::to_string(0)))(
-      "h,help", "Print help");
+      "device", "GPU device ID", cxxopts::value<unsigned>()->default_value(std::to_string(0)))("h,help", "Print help");
 
   return options;
 }
@@ -32,8 +28,7 @@ cxxopts::ParseResult parse_commandline(int argc, const char *argv[]) {
       exit(EXIT_SUCCESS);
     }
 
-    std::vector<std::string> required_options{"a_matrix", "rf",     "bf",
-                                              "pixels",   "frames", "samples"};
+    std::vector<std::string> required_options{"a_matrix", "rf", "bf", "pixels", "frames", "samples"};
     for (auto &opt : required_options) {
       if (!result.count(opt)) {
         std::cerr << "Required argument missing: " << opt << std::endl;

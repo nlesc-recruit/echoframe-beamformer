@@ -1,16 +1,16 @@
 #ifndef TCBF_H_
 #define TCBF_H_
 
+#include <limits.h>
+
 #include <ccglib/ccglib.hpp>
 #include <cudawrappers/cu.hpp>
-#include <limits.h>
 
 namespace tcbf {
 
 class Beamformer {
-public:
-  Beamformer(const size_t pixels, const size_t frames, const size_t samples,
-             cu::Device &device, cu::Stream &stream);
+ public:
+  Beamformer(const size_t pixels, const size_t frames, const size_t samples, cu::Device &device, cu::Stream &stream);
 
   // static void prepare_A_matrix(const std::string input_path, const
   // std::string output_path, const size_t pixels, const size_t samples,
@@ -20,7 +20,7 @@ public:
   void write_BF(cu::HostMemory &BF, const std::string path);
   void process(cu::HostMemory &RF, cu::HostMemory &BF);
 
-private:
+ private:
   void RF_to_device(cu::HostMemory &RF);
   void BF_to_host(cu::HostMemory &BF);
 
@@ -28,8 +28,7 @@ private:
   static const size_t kBatchSize{1};
   static const ccglib::mma::Precision kGEMMPrecision{ccglib::mma::int1};
   static const ccglib::mma::Variant kGEMMVariant{ccglib::mma::opt};
-  const dim3 kGEMMTileSize{
-      ccglib::mma::GEMM::GetDimensions(kGEMMPrecision, kGEMMVariant)};
+  const dim3 kGEMMTileSize{ccglib::mma::GEMM::GetDimensions(kGEMMPrecision, kGEMMVariant)};
 
   std::unique_ptr<cu::DeviceMemory> d_A;
   std::unique_ptr<cu::DeviceMemory> d_RF;
@@ -58,6 +57,6 @@ private:
   cu::Stream &stream_;
 };
 
-} // namespace tcbf
+}  // namespace tcbf
 
-#endif // TCBF_H_
+#endif  // TCBF_H_
