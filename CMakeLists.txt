@@ -29,11 +29,15 @@ FetchContent_Declare(
   ccglib
   GIT_REPOSITORY https://git.astron.nl/RD/recruit/ccglib
   GIT_TAG packing_complex_last) # temporary to support complex-last data
+# SOURCE_DIR /home/oostrum/recruit/ccglib)
 FetchContent_MakeAvailable(ccglib)
 
 add_library(tcbf SHARED src/tcbf.cu)
 target_include_directories(tcbf PUBLIC include/)
 target_link_libraries(tcbf ccglib cudawrappers::cu cudawrappers::nvrtc)
 
-add_executable(${PROJECT_NAME} src/main.cu)
-target_link_libraries(${PROJECT_NAME} cxxopts tcbf)
+add_executable(${PROJECT_NAME}-standalone src/main.cu)
+target_link_libraries(${PROJECT_NAME}-standalone cxxopts tcbf)
+
+add_executable(${PROJECT_NAME}-prepare-a-matrix src/prepare_a_matrix.cu)
+target_link_libraries(${PROJECT_NAME}-prepare-a-matrix cxxopts tcbf)
