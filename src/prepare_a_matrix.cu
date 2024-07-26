@@ -89,11 +89,12 @@ int main(int argc, const char *argv[]) {
   // conjugate
   std::cout << "Conjugate" << std::endl;
 #pragma omp parallel for collapse(2)
-  for (size_t pixel = 0; pixel < pixels; pixel++)
+  for (size_t pixel = 0; pixel < pixels; pixel++) {
     for (size_t sample = 0; sample < samples; sample++) {
       const size_t idx = pixels_padded * samples_padded + pixel * samples_padded + sample;
       static_cast<char *>(a_matrix_host)[idx] = 1 - static_cast<char *>(a_matrix_host)[idx];
     }
+  }
 
   // Device memory for output packed data
   cu::DeviceMemory d_a_matrix_packed(bytes_a_matrix_packed);
@@ -104,41 +105,34 @@ int main(int argc, const char *argv[]) {
   // chunk of input data on device in case it doesn't fit in GPU memory
   // get available GPU memory (after allocating other device memory)
   // use at most 80% of available memory
-  size_t chunk_size = .8 * context.getFreeMemory();
-  size_t pixels_per_chunk = chunk_size / (samples_padded);
-  if (pixels_per_chunk > pixels) {
-    pixels_per_chunk = pixels;
+  size_t bytes_per_chunk = .8 * context.getFreeMemory();
+  // round to multiple of a kilobyte such that
+  // a large multiple of unsigned ints (4 bytes) is processed
+  // packing kernel uses 256 threads per block: one block is on KB
+  bytes_per_chunk = 1024 * (bytes_per_chunk / 1024);
+  if (bytes_per_chunk > bytes_a_matrix) {
+    bytes_per_chunk = bytes_a_matrix;
   }
-  chunk_size = pixels_per_chunk * samples_padded;
-  cu::DeviceMemory d_a_chunk(chunk_size);
-  d_a_chunk.zero(chunk_size);
+  cu::DeviceMemory d_a_chunk(bytes_per_chunk);
+  d_a_chunk.zero(bytes_per_chunk);
 
   // process, complex-first for now
-  // first real, then imag part
   std::cout << "Packing" << std::endl;
-  for (size_t c = 0; c < 2; c++) {
-    const size_t complex_offset = c * pixels_padded * samples_padded;
-    // process chunks
-    for (size_t pixel_start = 0; pixel_start < pixels; pixel_start += pixels_per_chunk) {
-      size_t local_npixels = pixels_per_chunk;
-      // correct npixels in last chunk
-      if (pixel_start + local_npixels > pixels) {
-        local_npixels = pixels - pixel_start;
-        // ensure any padded region is set to zero
-        d_a_chunk.zero(chunk_size);
-      }
-      // copy chunk to device
-      const size_t offset = complex_offset + pixel_start * samples_padded;
-      const size_t offset_packed = offset / CHAR_BIT;
-      const size_t bytes_to_transfer = local_npixels * samples_padded;
-      const size_t bytes_packed = bytes_to_transfer / CHAR_BIT;
-      stream.memcpyHtoDAsync(d_a_chunk, static_cast<char *>(a_matrix_host) + offset, bytes_to_transfer);
-      // get device memory slice for this chunk in a_packed
-      cu::DeviceMemory d_a_packed_chunk(d_a_matrix_packed, offset_packed, bytes_packed);
-      // run packing kernel
-      ccglib::packing::Packing packing(bytes_to_transfer, device, stream);
-      packing.Run(d_a_chunk, d_a_packed_chunk, ccglib::packing::pack, ccglib::packing::complex_first);
+  for (size_t byte_start = 0; byte_start < bytes_a_matrix; byte_start += bytes_per_chunk) {
+    size_t local_nbytes = bytes_per_chunk;
+    // correct nbytes in last chunk
+    if (byte_start + local_nbytes > bytes_a_matrix) {
+      local_nbytes = bytes_a_matrix - byte_start;
+      // ensure any padded region is set to zero
+      d_a_chunk.zero(bytes_per_chunk);
     }
+    // copy chunk to device
+    stream.memcpyHtoDAsync(d_a_chunk, static_cast<char *>(a_matrix_host) + byte_start, local_nbytes);
+    // get device memory slice for this chunk in a_packed
+    cu::DeviceMemory d_a_packed_chunk(d_a_matrix_packed, byte_start / CHAR_BIT, local_nbytes / CHAR_BIT);
+    // run packing kernel
+    ccglib::packing::Packing packing(local_nbytes, device, stream);
+    packing.Run(d_a_chunk, d_a_packed_chunk, ccglib::packing::pack, ccglib::packing::complex_first);
   }
 
   // transpose
