@@ -105,9 +105,11 @@ int main(int argc, const char *argv[]) {
   // Device memory for output packed data
   cu::DeviceMemory d_a_matrix_packed(bytes_a_matrix_packed);
   d_a_matrix_packed.zero(bytes_a_matrix_packed);
+  // Device memory for transposed data
+  cu::DeviceMemory d_a_transposed(bytes_a_matrix_packed);
 
   // chunk of input data on device in case it doesn't fit in GPU memory
-  // get available GPU memory (after allocating packed output)
+  // get available GPU memory (after allocating other device memory)
   // use at most 80% of available memory
   size_t chunk_size = .8 * context.getFreeMemory();
   size_t pixels_per_chunk = chunk_size / (samples_padded);
@@ -176,7 +178,6 @@ int main(int argc, const char *argv[]) {
 
   // transpose
   std::cout << "Transpose" << std::endl;
-  cu::DeviceMemory d_a_transposed(bytes_a_matrix_packed);
   ccglib::transpose::Transpose transpose(1, pixels_padded, samples_padded,
                                          tile_sizes.x, tile_sizes.z, 1, device,
                                          stream);
