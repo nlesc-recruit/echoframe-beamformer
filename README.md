@@ -28,7 +28,12 @@ This will create executables and a `libtcbf` library in the build directory.
 
 ## Usage
 
-### Standalone beamformer
-The standalone beamformer executable is `echoframe-beamformer`. It can read a prepared A matrix and raw RF from disk, process it on the GPU, and store the BF back to disk. Example commandline:
+### Prepare A matrix
+The A matrix must be preprocessed before beamforming. Example commandline:
 
-`echoframe-beamformer --a_matrix A_matrix.bin --rf RF.bin --bf BF.bin --pixels 4096 --frames 8192 --samples 16384`
+`echoframe-tcbf-prepare-a-matrix --a_matrix_in A_matrix.bin --a_matrix_out A_matrix_preprocessed.bin --pixels 4096 --samples 16384`
+
+### Standalone beamformer
+The standalone beamformer executable is `echoframe-beamformer`. It can read a preprocessed A matrix and raw RF from disk, process it on the GPU, and store the BF back to disk. Example commandline:
+
+`echoframe-tcbf-standalone --a_matrix A_matrix_preprocessed.bin --rf RF.bin --bf BF.bin --pixels 4096 --frames 8192 --samples 16384`
