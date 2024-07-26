@@ -54,6 +54,7 @@ int main(int argc, const char *argv[]) {
   const size_t pixels = cmdline["pixels"].as<size_t>();
   const size_t samples = cmdline["samples"].as<size_t>();
   const unsigned device_id = cmdline["device"].as<unsigned>();
+  const size_t complex = 2;
 
   cu::init();
   cu::Device device(device_id);
@@ -67,24 +68,32 @@ int main(int argc, const char *argv[]) {
   const size_t samples_padded = align(samples, tile_sizes.z);
 
   // factor 2 for complex
-  // host is unpadded, device is always padded
-  const size_t bytes_a_matrix = 2UL * pixels * samples;
-  const size_t bytes_a_matrix_packed = 2UL * pixels_padded * samples_padded / CHAR_BIT;
+  const size_t bytes_a_matrix = complex * pixels_padded * samples_padded;
+  const size_t bytes_a_matrix_packed = bytes_a_matrix / CHAR_BIT;
 
   // Read data from disk
+  // row-by-row to handle padding
   cu::HostMemory a_matrix_host(bytes_a_matrix);
   std::ifstream in(path_a_matrix_in, std::ios::binary | std::ios::in);
   if (!in) {
     throw std::runtime_error("Failed to open input file: " + path_a_matrix_in);
   }
-  in.read(static_cast<char *>(a_matrix_host), bytes_a_matrix);
+  for (size_t c = 0; c < complex; c++) {
+    for (size_t pixel = 0; pixel < pixels; pixel++) {
+      in.read(static_cast<char *>(a_matrix_host) + c * pixels_padded * samples_padded + pixel * samples_padded,
+              samples);
+    }
+  }
   in.close();
 
   // conjugate
   std::cout << "Conjugate" << std::endl;
-  for (size_t i = bytes_a_matrix / 2; i < bytes_a_matrix; i++) {
-    static_cast<char *>(a_matrix_host)[i] = 1 - static_cast<char *>(a_matrix_host)[i];
-  }
+#pragma omp parallel for collapse(2)
+  for (size_t pixel = 0; pixel < pixels; pixel++)
+    for (size_t sample = 0; sample < samples; sample++) {
+      const size_t idx = pixels_padded * samples_padded + pixel * samples_padded + sample;
+      static_cast<char *>(a_matrix_host)[idx] = 1 - static_cast<char *>(a_matrix_host)[idx];
+    }
 
   // Device memory for output packed data
   cu::DeviceMemory d_a_matrix_packed(bytes_a_matrix_packed);

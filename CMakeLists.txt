@@ -10,6 +10,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
 
 find_package(CUDAToolkit REQUIRED)
+find_package(OpenMP REQUIRED)
+
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=${OpenMP_CXX_FLAGS}")
 
 include(FetchContent)
 
@@ -40,4 +43,5 @@ add_executable(${PROJECT_NAME}-standalone src/main.cu)
 target_link_libraries(${PROJECT_NAME}-standalone cxxopts tcbf)
 
 add_executable(${PROJECT_NAME}-prepare-a-matrix src/prepare_a_matrix.cu)
-target_link_libraries(${PROJECT_NAME}-prepare-a-matrix cxxopts tcbf)
+target_link_libraries(${PROJECT_NAME}-prepare-a-matrix cxxopts tcbf
+                      OpenMP::OpenMP_CXX)
