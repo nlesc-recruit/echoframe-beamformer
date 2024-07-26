@@ -1,5 +1,6 @@
 [![github url](https://img.shields.io/badge/github-url-000.svg?logo=github&labelColor=gray&color=blue)](https://github.com/nlesc-recruit/echoframe-beamformer)
 [![github license badge](https://img.shields.io/github/license/nlesc-recruit/echoframe-beamformer)](https://github.com/nlesc-recruit/echoframe-beamformer)
+[![Research Software Directory](https://img.shields.io/badge/RSD-Echoframe%20Tensor%20Core%20Beamformer-00a3e3.svg)](https://research-software-directory.org/software/echoframe-tensor-core-beamformer)
 [![CI status](https://github.com/nlesc-recruit/echoframe-beamformer/actions/workflows/build.yml/badge.svg)](https://github.com/nlesc-recruit/echoframe-beamformer/actions/workflows/build.yml)
 
 # Echoframe tensor core beamformer
