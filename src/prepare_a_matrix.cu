@@ -1,5 +1,4 @@
 #include <ccglib/helper.h>
-#include <cuda_runtime.h>
 #include <limits.h>
 #include <tcbf.h>
 
@@ -7,15 +6,6 @@
 #include <cxxopts.hpp>
 #include <fstream>
 #include <iostream>
-
-__global__ void conjugate_1bit(unsigned *data, const size_t n_bytes) {
-  size_t tid = threadIdx.x + blockDim.x * static_cast<size_t>(blockIdx.x);
-  const size_t n_elements = n_bytes / sizeof(unsigned);
-  if (tid >= n_elements) {
-    return;
-  }
-  data[tid] = ~data[tid];
-}
 
 inline size_t align(size_t a, size_t b) { return b * ccglib::helper::ceildiv(a, b); }
 
@@ -90,66 +80,75 @@ int main(int argc, const char *argv[]) {
   in.read(static_cast<char *>(a_matrix_host), bytes_a_matrix);
   in.close();
 
+  // conjugate
+  std::cout << "Conjugate" << std::endl;
+  for (size_t i = bytes_a_matrix / 2; i < bytes_a_matrix; i++) {
+    static_cast<char *>(a_matrix_host)[i] = 1 - static_cast<char *>(a_matrix_host)[i];
+  }
+
   // Device memory for output packed data
   cu::DeviceMemory d_a_matrix_packed(bytes_a_matrix_packed);
   d_a_matrix_packed.zero(bytes_a_matrix_packed);
   // Device memory for transposed data
   cu::DeviceMemory d_a_transposed(bytes_a_matrix_packed);
-
-  // chunk of input data on device in case it doesn't fit in GPU memory
-  // get available GPU memory (after allocating other device memory)
-  // use at most 80% of available memory
-  size_t chunk_size = .8 * context.getFreeMemory();
-  size_t pixels_per_chunk = chunk_size / (samples_padded);
-  if (pixels_per_chunk > pixels) {
-    pixels_per_chunk = pixels;
-  }
-  chunk_size = pixels_per_chunk * samples_padded;
-  cu::DeviceMemory d_a_chunk(chunk_size);
-  d_a_chunk.zero(chunk_size);
-
-  // process, complex-first for now
-  // first real, then imag part
-  std::cout << "Start of processing" << std::endl;
-  std::cout << "Packing" << std::endl;
-  for (size_t c = 0; c < 2; c++) {
-    const size_t complex_offset_host = c * pixels * samples;
-    const size_t complex_offset_device_packed = c * pixels_padded * samples_padded / CHAR_BIT;
-    // process chunks
-    for (size_t pixel_start = 0; pixel_start < pixels; pixel_start += pixels_per_chunk) {
-      size_t local_npixels = pixels_per_chunk;
-      // correct npixels in last chunk
-      if (pixel_start + local_npixels > pixels) {
-        local_npixels = pixels - pixel_start;
-        // ensure any padded region is set to zero
-        d_a_chunk.zero(chunk_size);
-      }
-      // copy chunk to device, row-by-row to handle padding
-      for (size_t pixel = 0; pixel < local_npixels; pixel++) {
-        const size_t d_offset = pixel * samples_padded;
-        const size_t offset = (pixel_start + pixel) * samples + complex_offset_host;
-        const size_t bytes_to_transfer = samples;
-
-        cu::DeviceMemory d_a_chunk_slice(d_a_chunk, d_offset, bytes_to_transfer);
-        stream.memcpyHtoDAsync(d_a_chunk_slice, static_cast<char *>(a_matrix_host) + offset, bytes_to_transfer);
-      }
-      // get offset for this chunk in a_packed
-      cu::DeviceMemory d_a_packed_chunk(d_a_matrix_packed,
-                                        pixel_start * samples_padded / CHAR_BIT + complex_offset_device_packed,
-                                        local_npixels * samples_padded / CHAR_BIT);
-      // run packing kernel
-      ccglib::packing::Packing packing(local_npixels * samples_padded, device, stream);
-      packing.Run(d_a_chunk, d_a_packed_chunk, ccglib::packing::pack, ccglib::packing::complex_first);
+  /*
+    // chunk of input data on device in case it doesn't fit in GPU memory
+    // get available GPU memory (after allocating other device memory)
+    // use at most 80% of available memory
+    size_t chunk_size = .8 * context.getFreeMemory();
+    size_t pixels_per_chunk = chunk_size / (samples_padded);
+    if (pixels_per_chunk > pixels) {
+      pixels_per_chunk = pixels;
     }
-  }
+    chunk_size = pixels_per_chunk * samples_padded;
+    cu::DeviceMemory d_a_chunk(chunk_size);
+    d_a_chunk.zero(chunk_size);
 
-  // conjugate
-  std::cout << "Conjugate" << std::endl;
-  dim3 threads(256);
-  dim3 grid(ccglib::helper::ceildiv(bytes_a_matrix_packed / 2, threads.x));
+    // process, complex-first for now
+    // first real, then imag part
+    std::cout << "Packing" << std::endl;
+    for (size_t c = 0; c < 2; c++) {
+      const size_t complex_offset_host = c * pixels * samples;
+      const size_t complex_offset_device_packed = c * pixels_padded * samples_padded / CHAR_BIT;
+      // process chunks
+      for (size_t pixel_start = 0; pixel_start < pixels; pixel_start += pixels_per_chunk) {
+        size_t local_npixels = pixels_per_chunk;
+        // correct npixels in last chunk
+        if (pixel_start + local_npixels > pixels) {
+          local_npixels = pixels - pixel_start;
+          // ensure any padded region is set to zero
+          d_a_chunk.zero(chunk_size);
+        }
+        // copy chunk to device, row-by-row to handle padding
+        for (size_t pixel = 0; pixel < local_npixels; pixel++) {
+          const size_t d_offset = pixel * samples_padded;
+          const size_t offset = (pixel_start + pixel) * samples + complex_offset_host;
+          const size_t bytes_to_transfer = samples;
+
+          cu::DeviceMemory d_a_chunk_slice(d_a_chunk, d_offset, bytes_to_transfer);
+          stream.memcpyHtoDAsync(d_a_chunk_slice, static_cast<char *>(a_matrix_host) + offset, bytes_to_transfer);
+        }
+        // get offset for this chunk in a_packed
+        cu::DeviceMemory d_a_packed_chunk(d_a_matrix_packed,
+                                          pixel_start * samples_padded / CHAR_BIT + complex_offset_device_packed,
+                                          local_npixels * samples_padded / CHAR_BIT);
+        // run packing kernel
+        ccglib::packing::Packing packing(local_npixels * samples_padded, device, stream);
+        packing.Run(d_a_chunk, d_a_packed_chunk, ccglib::packing::pack, ccglib::packing::complex_first);
+      }
+    }
+    */
+
+  // pack real part
+  std::cout << "pack" << std::endl;
+  ccglib::packing::Packing packing(bytes_a_matrix / 2, device, stream);
+  cu::DeviceMemory d_a_in(bytes_a_matrix / 2);
+  stream.memcpyHtoDAsync(d_a_in, a_matrix_host, bytes_a_matrix / 2);
+  packing.Run(d_a_in, d_a_matrix_packed, ccglib::packing::pack);
+  // pack imag part
+  stream.memcpyHtoDAsync(d_a_in, static_cast<char *>(a_matrix_host) + bytes_a_matrix / 2, bytes_a_matrix / 2);
   cu::DeviceMemory d_a_matrix_packed_imag(d_a_matrix_packed, bytes_a_matrix_packed / 2, bytes_a_matrix_packed / 2);
-  conjugate_1bit<<<grid, threads, 0, stream>>>(
-      reinterpret_cast<unsigned *>(static_cast<CUdeviceptr>(d_a_matrix_packed_imag)), bytes_a_matrix_packed / 2);
+  packing.Run(d_a_in, d_a_matrix_packed_imag, ccglib::packing::pack);
 
   // transpose
   std::cout << "Transpose" << std::endl;
