@@ -35,9 +35,9 @@ Beamformer::Beamformer(const size_t pixels, const size_t frames, const size_t sa
   pack_rf_ = std::make_unique<ccglib::packing::Packing>(COMPLEX * frames_padded_ * samples_padded_, device_, stream_);
   transpose_rf_ = std::make_unique<ccglib::transpose::Transpose>(
       kBatchSize, frames_padded_, samples_padded_, kGEMMTileSize.y, kGEMMTileSize.z, kBitsPerSample, device_, stream_);
-  gemm_ =
-      std::make_unique<ccglib::mma::GEMM>(kBatchSize, pixels_padded_, frames_padded_, samples_padded_, kBitsPerSample,
-                                          device_, stream_, kGEMMPrecision, kGEMMVariant, ccglib::mma::col_major);
+  gemm_ = std::make_unique<ccglib::mma::GEMM>(kBatchSize, pixels_padded_, frames_padded_, samples_padded_,
+                                              kBitsPerSample, device_, stream_, kGEMMPrecision, kGEMMVariant,
+                                              ccglib::mma::complex_middle, ccglib::mma::col_major);
 }
 
 void Beamformer::read_A_matrix(const std::string path) {
