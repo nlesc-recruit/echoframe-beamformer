@@ -1,3 +1,5 @@
+#include <cstring>
+#include <cstdint>
 #include "mex.h"
 #include "tcbf.h"  // include the header
 
@@ -22,19 +24,19 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   tcbf::Beamformer beamformer(pixels, frames, samples, device, stream);
   cu::HostMemory RF(2 * frames * samples);
-  cu::HostMemory BF(2 * pixels * frames * sizeof(unsigned));
+  cu::HostMemory BF(2 * pixels * frames * sizeof(int32_t));
 
   beamformer.read_A_matrix(path_a_matrix);
   beamformer.read_RF(RF, path_rf);
   beamformer.process(RF, BF);
   beamformer.write_BF(BF, path_bf);
 
-  mwSize dims[2] = {2 * pixels, frames};
-  mxArray *outArray = mxCreateNumericArray(2, dims, mxINT32_CLASS, mxREAL);
-  int32_t *outData = static_cast<int32_t *>(mxGetData(outArray));
+  mwSize dims[3] = {pixels, frames, 2};
+  mxArray *outArray = mxCreateNumericArray(3, dims, mxINT32_CLASS, mxREAL);
+  int32_t *outData = reinterpret_cast<int32_t *>(mxGetData(outArray));
 
   // Copy the data
-  std::memcpy(outData, BF, 2 * frames * samples * sizeof(int32_t));
+  std::memcpy(outData, BF, 2 * frames * pixels * sizeof(int32_t));
 
   // Assign output
   plhs[0] = outArray;
