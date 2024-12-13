@@ -41,7 +41,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   int status = 0;
 
-  if (nlhs > 0) {
-    plhs[0] = mxCreateDoubleScalar((double)status);
+  if (nlhs > 1) {
+    plhs[1] = mxCreateDoubleScalar((double)status);
   }
 }
