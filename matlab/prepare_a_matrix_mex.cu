@@ -3,11 +3,10 @@
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (nrhs != 5) {
-    mexErrMsgIdAndTxt("beamformer_mex:InvalidInput",
+    mexErrMsgIdAndTxt("prepare_a_matrix_mex:InvalidInput",
                       "Five inputs required: a_matrix_in, a_matrix_out, pixels, samples, device_id");
   }
 
-  // Extract arguments from MATLAB inputs
   char *a_matrix_in_c = mxArrayToString(prhs[0]);
   char *a_matrix_out_c = mxArrayToString(prhs[1]);
   double pixels_d = mxGetScalar(prhs[2]);
@@ -25,7 +24,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   int status = prepareAMatrix(a_matrix_in, a_matrix_out, pixels, samples, device_id);
 
+  if (status == 0) {
+    mexPrintf("prepareAMatrix completed successfully.\n");
+  } else {
+    mexPrintf("prepareAMatrix failed with status code: %d\n", status);
+  }
+
   if (nlhs > 0) {
-    plhs[0] = mxCreateDoubleScalar(static_cast<double>(status));
+    plhs[0] = mxCreateDoubleScalar((double)status);
   }
 }
