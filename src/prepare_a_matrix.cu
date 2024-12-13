@@ -7,6 +7,8 @@
 #include <fstream>
 #include <iostream>
 
+#include "prepare_a_matrix.h"
+
 inline size_t align(size_t a, size_t b) { return b * ccglib::helper::ceildiv(a, b); }
 
 cxxopts::Options create_commandline_parser(const char *argv[]) {
@@ -45,6 +47,113 @@ cxxopts::ParseResult parse_commandline(int argc, const char *argv[]) {
     std::cerr << "Error parsing commandline: " << err.what() << std::endl;
     exit(EXIT_FAILURE);
   }
+}
+
+// This function will run the beamformer given the parameters
+int prepareAMatrix(const std::string &path_a_matrix_in, const std::string &path_a_matrix_out, size_t pixels,
+                   size_t samples, unsigned device_id) {
+  const size_t complex = 2;
+
+  cu::init();
+  cu::Device device(device_id);
+  cu::Context context(CU_CTX_BLOCKING_SYNC, device);
+  cu::Stream stream;
+
+  // tile size in beams, frames, samples axes
+  dim3 tile_sizes = ccglib::mma::GEMM::GetDimensions(ccglib::mma::int1, ccglib::mma::opt);
+
+  const size_t pixels_padded = align(pixels, tile_sizes.x);
+  const size_t samples_padded = align(samples, tile_sizes.z);
+
+  // factor 2 for complex
+  const size_t bytes_a_matrix = complex * pixels_padded * samples_padded;
+  const size_t bytes_a_matrix_packed = bytes_a_matrix / CHAR_BIT;
+
+  // Read data from disk
+  // row-by-row to handle padding
+  cu::HostMemory a_matrix_host(bytes_a_matrix);
+  std::ifstream in(path_a_matrix_in, std::ios::binary | std::ios::in);
+  if (!in) {
+    std::cerr << "Failed to open input file: " + path_a_matrix_in << std::endl;
+    return -1;
+  }
+  for (size_t c = 0; c < complex; c++) {
+    for (size_t pixel = 0; pixel < pixels; pixel++) {
+      in.read(static_cast<char *>(a_matrix_host) + c * pixels_padded * samples_padded + pixel * samples_padded,
+              samples);
+    }
+  }
+  in.close();
+
+  // conjugate
+  std::cout << "Conjugate" << std::endl;
+#pragma omp parallel for collapse(2)
+  for (size_t pixel = 0; pixel < pixels; pixel++) {
+    for (size_t sample = 0; sample < samples; sample++) {
+      const size_t idx = pixels_padded * samples_padded + pixel * samples_padded + sample;
+      static_cast<char *>(a_matrix_host)[idx] = 1 - static_cast<char *>(a_matrix_host)[idx];
+    }
+  }
+
+  // Device memory for output packed data
+  cu::DeviceMemory d_a_matrix_packed(bytes_a_matrix_packed);
+  d_a_matrix_packed.zero(bytes_a_matrix_packed);
+  // Device memory for transposed data
+  cu::DeviceMemory d_a_transposed(bytes_a_matrix_packed);
+
+  // chunk of input data on device in case it doesn't fit in GPU memory
+  // get available GPU memory (after allocating other device memory)
+  // use at most 80% of available memory
+  size_t bytes_per_chunk = static_cast<size_t>(0.8 * context.getFreeMemory());
+  // packing kernel uses at most 1024 threads per block
+  bytes_per_chunk = 1024 * (bytes_per_chunk / 1024);
+  if (bytes_per_chunk > bytes_a_matrix) {
+    bytes_per_chunk = bytes_a_matrix;
+  }
+  cu::DeviceMemory d_a_chunk(bytes_per_chunk);
+  d_a_chunk.zero(bytes_per_chunk);
+
+  // process, complex-first for now
+  std::cout << "Packing" << std::endl;
+  for (size_t byte_start = 0; byte_start < bytes_a_matrix; byte_start += bytes_per_chunk) {
+    size_t local_nbytes = bytes_per_chunk;
+    // correct nbytes in last chunk
+    if (byte_start + local_nbytes > bytes_a_matrix) {
+      local_nbytes = bytes_a_matrix - byte_start;
+      // ensure any padded region is set to zero
+      d_a_chunk.zero(bytes_per_chunk);
+    }
+    // copy chunk to device
+    stream.memcpyHtoDAsync(d_a_chunk, static_cast<char *>(a_matrix_host) + byte_start, local_nbytes);
+    // get device memory slice for this chunk in a_packed
+    cu::DeviceMemory d_a_packed_chunk(d_a_matrix_packed, byte_start / CHAR_BIT, local_nbytes / CHAR_BIT);
+    // run packing kernel
+    ccglib::packing::Packing packing(local_nbytes, device, stream);
+    packing.Run(d_a_chunk, d_a_packed_chunk, ccglib::packing::pack, ccglib::packing::complex_first);
+  }
+
+  // transpose
+  std::cout << "Transpose" << std::endl;
+  ccglib::transpose::Transpose transpose(1, pixels_padded, samples_padded, tile_sizes.x, tile_sizes.z, 1, device,
+                                         stream);
+  transpose.Run(d_a_matrix_packed, d_a_transposed);
+
+  // copy output to host
+  std::cout << "Copy to host" << std::endl;
+  cu::HostMemory a_matrix_output(bytes_a_matrix_packed);
+  stream.memcpyDtoHAsync(a_matrix_output, d_a_transposed, bytes_a_matrix_packed);
+  stream.synchronize();
+
+  // write to disk
+  std::cout << "Write to disk" << std::endl;
+  std::ofstream out(path_a_matrix_out, std::ios::binary | std::ios::out);
+  if (!out) {
+    std::cerr << "Failed to open output file: " + path_a_matrix_out << std::endl;
+    return -1;
+  }
+  out.write(static_cast<char *>(a_matrix_output), bytes_a_matrix_packed);
+
+  return 0;  // success
 }
 
 int main(int argc, const char *argv[]) {
