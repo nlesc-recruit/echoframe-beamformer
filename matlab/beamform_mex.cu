@@ -34,7 +34,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   int32_t *outData = static_cast<int32_t *>(mxGetData(outArray));
 
   // Copy the data
-  std::memcpy(outData, BF, totalElements * sizeof(int32_t));
+  std::memcpy(outData, BF, 2 * frames * samples * sizeof(int32_t));
 
   // Assign output
   plhs[0] = outArray;
