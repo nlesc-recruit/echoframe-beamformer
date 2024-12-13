@@ -1,5 +1,5 @@
-#include "tcbf.h"  // include the header
 #include "mex.h"
+#include "tcbf.h"  // include the header
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (nrhs != 7) {
@@ -29,6 +29,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   beamformer.process(RF, BF);
   beamformer.write_BF(BF, path_bf);
 
+  mwSize dims[2] = {2 * pixels, frames};
+  mxArray *outArray = mxCreateNumericArray(2, dims, mxINT32_CLASS, mxREAL);
+  int32_t *outData = static_cast<int32_t *>(mxGetData(outArray));
+
+  // Copy the data
+  std::memcpy(outData, BF, totalElements * sizeof(int32_t));
+
+  // Assign output
+  plhs[0] = outArray;
 
   int status = 0;
 
